@@ -1,6 +1,22 @@
 # Homework 2 (CS5830) 
 # Trying to implement a length preserving Encryption function.
-# 
+
+'''
+## Why 1, 2, or 3 rounds of Feistel are not enough to provide security by detailing attacks that evidence why the resulting cipher would not behave like a random permutation. These attacks can only abuse the structure of the Feistel, in particular assuming that AES is secure (behaving as a random permutation). 
+
+### 1 round of Feistel
+R0 = L1
+It is not security because the half of the message (R0) is in plaintext.
+
+### 2 rounds of Feistel
+R2 = L1 XOR F_K2(R1) = R0 XOR F_K2(R1) 
+L2 = R1 = L0 XOR F_K1(R0)
+Fhe F-function output is always the plaintext XOR the ciphertext, and so the subkey is found by inverting the f-function, and comparing the result to the input, which is visible in the ciphertext for the second round, and visible in the plaintext for the first round.
+
+### 3 rounds of Feistel
+TODO
+
+'''
 
 from cryptography.hazmat.primitives import hashes, padding
 from cryptography.hazmat.backends import default_backend
@@ -93,18 +109,19 @@ class MyFeistel:
         L, R = xor(R_next, self._prf(round_key, L_next)) , L_next
         return L + R
 
-class LengthPreservingCipher(object):
+class LengthPreservingCipher(MyFeistel): #[mw866] Inherit from MyFeistel
     #'length' is in bytes here
     def __init__(self, key, length=6):
-        self._length = 6
-        #TODO 
+        # self._length = 6
+        #[Done] 
+        MyFeistel.__init__(self, key, length, backend=None)
 
-    def encrypt(self, data):
-        # TODO
-        return data
+    # def encrypt(self, data):
+        # [TODO]
+        # return data
 
-    def decrypt(self, data):
-        # TODO
-        return data
+    # def decrypt(self, data):
+        # [TODO]
+        # return data
 
     # TODO - add other functions if required
