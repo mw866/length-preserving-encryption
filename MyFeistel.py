@@ -6,6 +6,8 @@ from cryptography.hazmat.primitives import hashes, padding
 from cryptography.hazmat.backends import default_backend
 import base64
 import binascii
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes # [mw866] Added
+from collections import deque #[mw866] Added
 
 def xor(a,b):
     """
@@ -27,11 +29,13 @@ class MyFeistel:
         self._num_rounds = num_rounds
         self._encryption_key = key
         self._backend = backend
-        self._round_keys = [self._encryption_key \
-                            for _ in xrange(self._num_rounds)]
+        self._round_keys = deque([self._encryption_key \
+                            for _ in xrange(self._num_rounds)]) #[mw866] changed from list to collections.dequeue
         for i  in xrange(self._num_rounds):
             if i==0: continue
             self._round_keys[i] = self._SHA256hash(self._round_keys[i-1])
+            # _round_keys length = 32 bytes
+
 
     def _SHA256hash(self, data):
         h = hashes.Hash(hashes.SHA256(), self._backend)
@@ -42,32 +46,52 @@ class MyFeistel:
         assert len(data)%2 == 0, "Supports only balanced feistel at "\
             "this moment. So provide even length messages."
 
-        # TODO - Fill in
+        # [Done] - Fill in
+        padder = padding.PKCS7(256).padder()
+        data = padder.update(data) + padder.finalize()
+        for i in xrange(self._num_rounds):
+            data = self._feistel_round_enc(data)
         return data
 
     def decrypt(self, ctx):
         assert len(ctx)%2 == 0, "Supports only balanced feistel at "\
             "this moment. So provide even length ciphertext."
-        #TODO - Fill in
+
+        # [Done] - Fill in
+        for i in xrange(self._num_rounds):
+            ctx = self._feistel_round_dec(ctx)
+        unpadder = padding.PKCS7(256).unpadder()
+        ctx = unpadder.update(ctx) + unpadder.finalize()
         return ctx
 
     def _prf(self, key, data):
         """Set up secure round function F
         """
-        # TODO - set up round function using AES 
-        return data
+        # [DONE] - set up round function using AES 
+        encryptor = Cipher(algorithms.AES(key),modes.ECB(), self._backend).encryptor()
+        return (encryptor.update(data) + encryptor.finalize())[-24:]
 
     def _feistel_round_enc(self, data):
         """This function implements one round of Fiestel encryption block.
         """
-        # TODO - Implement this function
-        return data
+        # [Done] - Implement this function
+        round_key = self._round_keys.pop()
+        self._round_keys.appendleft(round_key)
+
+        L, R = data[:len(data)/2], data[len(data)/2:]
+        L_next, R_next = R, xor(L, self._prf(round_key, R))
+        return L_next + R_next
     
     def _feistel_round_dec(self, data):
         """This function implements one round of Fiestel decryption block.
         """
-        # TODO - Implement this function 
-        return data
+        # [Done] - Implement this function 
+        round_key = self._round_keys.popleft()
+        self._round_keys.append(round_key)
+
+        L_next, R_next = data[:len(data)/2], data[len(data)/2:]
+        L, R = xor(R_next, self._prf(round_key, L_next)) , L_next
+        return L + R
 
 class LengthPreservingCipher(object):
     #'length' is in bytes here
